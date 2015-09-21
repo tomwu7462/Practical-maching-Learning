@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Practical-maching-learning by tomwu7462</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Practical-maching-learning</h1>
+      <h2 class="project-tagline">Practical machine learning</h2>
+      <a href="https://github.com/tomwu7462/Practical-maching-Learning" class="btn">View on GitHub</a>
+      <a href="https://github.com/tomwu7462/Practical-maching-Learning/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/tomwu7462/Practical-maching-Learning/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <hr>
+
+<p>title: "Practical Machine Learning"
+author: "Sang Hua"
+date: "Tuesday, September 15, 2015"</p>
+
+<h2>
+<a id="output-html_document" class="anchor" href="#output-html_document" aria-hidden="true"><span class="octicon octicon-link"></span></a>output: html_document</h2>
+
+<p>In prediction of classe in the training set,  I split the pml.training into training and testing first.  I will use 75 percent of the pml.training records
+for training the model and the other 25% to test my model.  I expect the out of sample error rate to be higher than the in sample error rate.</p>
+
+<p>After that, I removed those fields that I have identified to contribute nothing according to the nearZeroVar function.  After that, I removed fields that have
+high percent of missing values.</p>
+
+<p>Since the dependent variable is classe which is a factor, I am limited to decision tree and linear discriminant function.  I ran caret package using the rpart. and varImp function and was able to identify X, roll_belt, accel_belt_z, magnet_belt_y, pitch_forearm,
+total_accel_belt as fields that are powerful in predicting classe.  The field X is by far the most powerful predictor of all.  I can use X only and be able
+to predict classe in the testing and the 20 cases with pretty accurate.  It seems the way the order of data by row and classe are related.
+In the assignment, it was stated that all fields are available to be used for prediction.</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c">##Machine Class Project</span>
+
+library(<span class="pl-smi">caret</span>)
+library(<span class="pl-smi">dplyr</span>)
+
+<span class="pl-c">##Exploring analysis</span>
+table(<span class="pl-smi">pml.training</span><span class="pl-k">$</span><span class="pl-smi">classe</span>)
+nrow(<span class="pl-smi">pml.training</span>)
+
+<span class="pl-c">##Since my pm.training sample is large enough, I like to split</span>
+<span class="pl-c">## some of that to testing as well</span>
+
+<span class="pl-smi">inTrain</span> <span class="pl-k">&lt;-</span> createDataPartition(<span class="pl-v">y</span><span class="pl-k">=</span><span class="pl-smi">pml.training</span><span class="pl-k">$</span><span class="pl-smi">classe</span>, <span class="pl-v">p</span><span class="pl-k">=</span><span class="pl-c1">0.75</span>, <span class="pl-v">list</span><span class="pl-k">=</span><span class="pl-c1">FALSE</span>)
+<span class="pl-smi">training</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">pml.training</span>[<span class="pl-smi">inTrain</span>,]
+<span class="pl-smi">testing</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">pml.training</span>[<span class="pl-k">-</span><span class="pl-smi">inTrain</span>,]
+
+names(<span class="pl-smi">training</span>)
+<span class="pl-smi">nsv</span> <span class="pl-k">&lt;-</span> nearZeroVar(<span class="pl-smi">training</span>,<span class="pl-v">saveMetrics</span><span class="pl-k">=</span><span class="pl-c1">TRUE</span>)
+names(<span class="pl-smi">nsv</span>)
+<span class="pl-smi">nsv1</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">nsv</span>[<span class="pl-smi">nsv</span><span class="pl-k">$</span><span class="pl-smi">nzv</span> <span class="pl-k">==</span> <span class="pl-s"><span class="pl-pds">"</span>TRUE<span class="pl-pds">"</span></span>,]
+<span class="pl-smi">training</span> <span class="pl-k">&lt;-</span> tbl_df(<span class="pl-smi">training</span>)
+<span class="pl-c">##want to remove variables that are near zero or have a lot of missing values since they will not contribute much to the prediction of classe</span>
+<span class="pl-smi">myvars</span> <span class="pl-k">&lt;-</span> names(<span class="pl-smi">training</span>) <span class="pl-k">%in%</span> c(<span class="pl-s"><span class="pl-pds">"</span>new_window<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>kurtosis_roll_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>kurtosis_picth_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>kurtosis_yaw_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>skewness_roll_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>skewness_roll_belt.1<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>skewness_yaw_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>max_yaw_belt<span class="pl-pds">"</span></span>,
+<span class="pl-s"><span class="pl-pds">"</span>min_yaw_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>amplitude_yaw_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>avg_roll_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>stddev_roll_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>var_roll_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>avg_pitch_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>stddev_pitch_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>var_pitch_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>avg_yaw_arm<span class="pl-pds">"</span></span>,
+<span class="pl-s"><span class="pl-pds">"</span>stddev_yaw_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>var_yaw_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>kurtosis_roll_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>kurtosis_picth_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>kurtosis_yaw_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>max_roll_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>min_roll_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>min_pitch_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>amplitude_roll_arm<span class="pl-pds">"</span></span>,
+<span class="pl-s"><span class="pl-pds">"</span>kurtosis_roll_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>kurtosis_picth_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>kurtosis_yaw_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>skewness_roll_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>skewness_pitch_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>skewness_yaw_dumbbell<span class="pl-pds">"</span></span>,
+<span class="pl-s"><span class="pl-pds">"</span>max_yaw_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>min_yaw_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>amplitude_yaw_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>kurtosis_roll_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>kurtosis_picth_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>kurtosis_yaw_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>skewness_roll_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>skewness_pitch_forearm<span class="pl-pds">"</span></span>,
+<span class="pl-s"><span class="pl-pds">"</span>skewness_yaw_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>skewness_roll_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>skewness_pitch_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>skewness_yaw_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>max_yaw_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>min_yaw_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>amplitude_yaw_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>stddev_roll_forearm<span class="pl-pds">"</span></span>,
+<span class="pl-s"><span class="pl-pds">"</span>var_roll_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>avg_pitch_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>stddev_pitch_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>var_pitch_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>avg_yaw_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>stddev_yaw_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>var_yaw_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>user_name<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>cvtd_timestamp<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>skewness_roll_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>skewness_pitch_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>skewness_yaw_arm<span class="pl-pds">"</span></span>,
+<span class="pl-s"><span class="pl-pds">"</span>max_roll_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>max_picth_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>min_roll_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>min_pitch_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>amplitude_roll_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>amplitude_pitch_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>var_total_accel_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>avg_roll_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>stddev_roll_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>var_roll_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>avg_pitch_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>stddev_pitch_belt<span class="pl-pds">"</span></span>,
+<span class="pl-s"><span class="pl-pds">"</span>var_pitch_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>avg_yaw_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>stddev_yaw_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>var_yaw_belt<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>max_picth_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>max_yaw_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>min_yaw_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>amplitude_pitch_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>amplitude_yaw_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>max_roll_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>max_picth_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>min_roll_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>min_pitch_dumbbell<span class="pl-pds">"</span></span>,
+<span class="pl-s"><span class="pl-pds">"</span>amplitude_roll_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>amplitude_pitch_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>var_accel_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>avg_roll_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>stddev_roll_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>var_roll_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>avg_pitch_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>stddev_pitch_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>var_pitch_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>avg_yaw_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>stddev_yaw_dumbbell<span class="pl-pds">"</span></span>,
+<span class="pl-s"><span class="pl-pds">"</span>var_yaw_dumbbell<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span> max_roll_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>max_picth_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>min_roll_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>min_pitch_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span> amplitude_roll_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>amplitude_pitch_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>var_accel_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>avg_roll_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>var_accel_arm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>max_roll_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>amplitude_roll_forearm<span class="pl-pds">"</span></span>,
+<span class="pl-s"><span class="pl-pds">"</span>max_roll_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>amplitude_roll_forearm<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>var_accel_arm<span class="pl-pds">"</span></span>) 
+<span class="pl-smi">training2</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">training</span>[<span class="pl-k">!</span><span class="pl-smi">myvars</span>]
+str(<span class="pl-smi">training2</span>)
+names(<span class="pl-smi">training2</span>)
+
+<span class="pl-smi">t</span><span class="pl-k">&lt;-</span>sapply(<span class="pl-smi">training2</span>, <span class="pl-k">function</span>(<span class="pl-smi">x</span>) sum(is.na(<span class="pl-smi">x</span>)))
+var.test(<span class="pl-smi">training2</span><span class="pl-k">$</span><span class="pl-smi">classe</span>,<span class="pl-smi">training2</span><span class="pl-k">$</span><span class="pl-smi">X</span>)
+
+<span class="pl-c">##Exploratory analysis</span>
+tapply(<span class="pl-smi">training2</span><span class="pl-k">$</span><span class="pl-smi">X</span>,<span class="pl-smi">training2</span><span class="pl-k">$</span><span class="pl-smi">classe</span>,<span class="pl-smi">summary</span>)
+tapply(<span class="pl-smi">training2</span><span class="pl-k">$</span><span class="pl-smi">roll_belt</span>,<span class="pl-smi">training2</span><span class="pl-k">$</span><span class="pl-smi">classe</span>,<span class="pl-smi">summary</span>)
+tapply(<span class="pl-smi">training2</span><span class="pl-k">$</span><span class="pl-smi">accel_belt_z</span>,<span class="pl-smi">training2</span><span class="pl-k">$</span><span class="pl-smi">classe</span>,<span class="pl-smi">summary</span>)
+library(<span class="pl-smi">RANN</span>)
+
+<span class="pl-c">##Let's determine how many components</span>
+<span class="pl-smi">preProc</span> <span class="pl-k">&lt;-</span> preProcess(<span class="pl-smi">training2</span>[,<span class="pl-k">-</span><span class="pl-c1">57</span>],<span class="pl-v">method</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>pca<span class="pl-pds">"</span></span>,<span class="pl-v">thresh</span><span class="pl-k">=</span>.<span class="pl-c1">90</span>)
+<span class="pl-smi">preProc</span>
+<span class="pl-c">#try rpart to identify the key variables</span>
+<span class="pl-smi">modFit</span> <span class="pl-k">&lt;-</span> train(<span class="pl-smi">classe</span> <span class="pl-k">~</span> ., <span class="pl-v">method</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>rpart<span class="pl-pds">"</span></span>, <span class="pl-v">data</span><span class="pl-k">=</span><span class="pl-smi">training2</span>)
+<span class="pl-smi">prediction_tree</span> <span class="pl-k">&lt;-</span> cbind(<span class="pl-smi">testing</span><span class="pl-k">$</span><span class="pl-smi">classe</span>,predict(<span class="pl-smi">modFit</span>,<span class="pl-smi">testing</span>))
+table(<span class="pl-smi">prediction_tree</span>[,<span class="pl-c1">1</span>],<span class="pl-smi">prediction</span>[,<span class="pl-c1">2</span>])
+<span class="pl-smi">prediction_tree1</span> <span class="pl-k">&lt;-</span> cbind(<span class="pl-smi">pml.testing</span><span class="pl-k">$</span><span class="pl-smi">classe_num</span>,predict(<span class="pl-smi">modFit</span>,<span class="pl-smi">pml.testing</span>))
+table(<span class="pl-smi">prediction_tree1</span>[,<span class="pl-c1">1</span>],<span class="pl-smi">prediction_tree1</span>[,<span class="pl-c1">2</span>])
+
+varImp(<span class="pl-smi">modFit</span>, <span class="pl-v">scale</span> <span class="pl-k">=</span> <span class="pl-c1">FALSE</span>)
+
+print(<span class="pl-smi">modFit</span><span class="pl-k">$</span><span class="pl-smi">finalModel</span>)
+
+<span class="pl-c">#lda</span>
+<span class="pl-v">modlda</span> <span class="pl-k">=</span> train(<span class="pl-smi">classe</span> <span class="pl-k">~</span> ., <span class="pl-v">data</span><span class="pl-k">=</span><span class="pl-smi">training2</span>,<span class="pl-v">method</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>lda<span class="pl-pds">"</span></span>)
+warnings()
+<span class="pl-smi">modlda</span><span class="pl-k">$</span><span class="pl-smi">finalModel</span>
+<span class="pl-smi">prediction</span><span class="pl-k">&lt;-</span>cbind(<span class="pl-smi">testing</span><span class="pl-k">$</span><span class="pl-smi">classe</span>,predict(<span class="pl-smi">modlda</span>,<span class="pl-smi">testing</span>))
+table(<span class="pl-smi">prediction</span>[,<span class="pl-c1">1</span>],<span class="pl-smi">prediction</span>[,<span class="pl-c1">2</span>])
+<span class="pl-smi">prediction1</span><span class="pl-k">&lt;-</span>cbind(<span class="pl-smi">pml.testing</span><span class="pl-k">$</span><span class="pl-smi">classe_num</span>,predict(<span class="pl-smi">modlda</span>,<span class="pl-smi">pml.testing</span>))
+table(<span class="pl-smi">prediction1</span>[,<span class="pl-c1">1</span>],<span class="pl-smi">prediction1</span>[,<span class="pl-c1">2</span>])</pre></div>
+
+<p>You can also embed plots, for example:</p>
+
+<div class="highlight highlight-source-r"><pre>qplot(<span class="pl-smi">X</span>,<span class="pl-smi">accel_belt_z</span>,<span class="pl-v">colour</span><span class="pl-k">=</span><span class="pl-smi">classe</span>,<span class="pl-v">data</span><span class="pl-k">=</span><span class="pl-smi">training2</span>)
+qplot(<span class="pl-smi">X</span>,<span class="pl-smi">accel_belt_z</span>,<span class="pl-v">colour</span><span class="pl-k">=</span><span class="pl-smi">classe</span>,<span class="pl-v">data</span><span class="pl-k">=</span><span class="pl-smi">testing</span>)</pre></div>
+
+<p>Note that the <code>echo = FALSE</code> parameter was added to the code chunk to prevent printing of the R code that generated the plot.</p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/tomwu7462/Practical-maching-Learning">Practical-maching-learning</a> is maintained by <a href="https://github.com/tomwu7462">tomwu7462</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
